@@ -50,7 +50,6 @@ func (e Engine) loger(prefix, description string) {
 
 func (e Engine) parser(body, domain, search_engine string) (is_it bool) {
 	var reg_x string
-	e.loger("RUNNING : ", "Parser function running")
 	if strings.Contains(search_engine, ggl_name) {
 		reg_x = "(http|ftp|https)://([\\w_-]+(?:(?:\\.[\\w_-]+)+))([\\w.,@?^=%&:/~+#-]*[\\w@?^=%&/~+#-])?"
 	} else if strings.Contains(search_engine, passive_name) {
@@ -73,7 +72,6 @@ func (e Engine) parser(body, domain, search_engine string) (is_it bool) {
 			}
 		}
 	}
-	e.loger("SUCCESFLY : ", "Parser function finished")
 	return
 }
 
@@ -88,10 +86,6 @@ func (e Engine) GoogleEnum(query string) {
 		new_url = strings.Replace(base_url, "{page_no}", strconv.Itoa(i*10), -1)
 		resp, err := http.Get(new_url)
 		e.control(err)
-		if resp.Status == "404 Not Found" {
-			e.loger("ERROR : ", "GoogleEnum function get request status is : "+resp.Status)
-			break
-		}
 		defer resp.Body.Close()
 
 		body, err := ioutil.ReadAll(resp.Body)
@@ -103,11 +97,10 @@ func (e Engine) GoogleEnum(query string) {
 			e.loger("ERROR : ", "GoogleEnum funciton is caught google recaptcha")
 			break
 		} else {
-			e.loger("ERROR : ", "Last Page")
 			break
 		}
 	}
-	e.loger("STOP : ", "GoogleEnum function is stop")
+	e.loger("SUCCESFLY : ", "GoogleEnum function have finished")
 }
 
 func (e Engine) PassiveDNS(domain string) {
@@ -136,4 +129,5 @@ func main() {
 	fmt.Scan(&domain)
 
 	engine.PassiveDNS(domain)
+	engine.GoogleEnum(domain)
 }
