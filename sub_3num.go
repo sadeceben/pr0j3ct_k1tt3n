@@ -24,11 +24,11 @@ const passive_url string = "http://ptrarchive.com/tools/search.htm?label="
 const passive_name string = "PassiveDNS"
 
 type SearchEngine interface {
-	GoogleEnum() // [+]
-	PassiveDNS() // [+]
-	control()    // [+]
-	loger()      // [+]
-	parser()     // [-]
+	GoogleEnum()
+	PassiveDNS()
+	control()
+	loger()
+	parser()
 }
 
 type Engine struct {
