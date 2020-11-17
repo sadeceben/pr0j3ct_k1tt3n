@@ -12,7 +12,7 @@ git clone "https://github.com/sadeceben/sub_3num.git"
 
 ## How to Running ?
 
-then open **sub_3num.git** directory. After then
+then open **sub_3num/** directory. After then
 
 --------------------------------------------------
 
