@@ -80,56 +80,61 @@ func (e Engine) parser(body, domain, search_engine string) (is_it bool) {
 	return
 }
 
-func (e Engine) GoogleEnum(query string) {
+func (e Engine) Meow(url string) string {
+	client := &http.Client{}
 
-	base_url := google_url
-	base_url = strings.Replace(base_url, "{query}", "site:*.*."+query, -1)
+	req, err := http.NewRequest("GET", url, nil)
+	e.control(err)
+
+	req.Header.Set("User-Agent", "Sadeceben_Kitten_Bot/3.1")
+
+	resp, err := client.Do(req)
+	e.control(err)
+
+	defer resp.Body.Close()
+
+	body, err := ioutil.ReadAll(resp.Body)
+	e.control(err)
+
+	return string(body)
+}
+
+func (Google Engine) GoogleEnum(query string) {
+
+	base_url := strings.Replace(google_url, "{query}", "site:*.*."+query, -1)
 	new_url := ""
 
-	e.loger("RUNNING : ", "GoogleEnum function is runnig")
+	Google.loger("RUNNING : ", "GoogleEnum function is runnig")
 
 	for i := 0; i < 100; i++ {
 		new_url = strings.Replace(base_url, "{page_no}", strconv.Itoa(i*10), -1)
-		resp, err := http.Get(new_url)
-		e.control(err)
-		defer resp.Body.Close()
 		defer func() {
 			ggl_flag = false
 		}()
-		body, err := ioutil.ReadAll(resp.Body)
-		e.control(err)
-
-		if e.parser(string(body), query, ggl_name) {
+		if Google.parser(Google.Meow(new_url), query, ggl_name) {
 			fmt.Println(i)
-		} else if strings.Contains(string(body), google_re) {
-			e.loger("ERROR : ", "GoogleEnum funciton is caught google recaptcha")
+		} else if strings.Contains(Google.Meow(new_url), google_re) {
+			Google.loger("ERROR : ", "GoogleEnum funciton is caught google recaptcha")
 			break
 		} else {
 			break
 		}
 	}
-	e.loger("SUCCESFLY : ", "GoogleEnum function have finished")
+	Google.loger("SUCCESFLY : ", "GoogleEnum function have finished")
 }
 
-func (e Engine) PassiveDNS(domain string) {
+func (Passive Engine) PassiveDNS(domain string) {
 	base_url := passive_url + domain
-	e.loger("RUNNING : ", "PassiveDNS running")
+	Passive.loger("RUNNING : ", "PassiveDNS running")
 
-	resp, err := http.Get(base_url)
-	e.control(err)
-
-	defer resp.Body.Close()
 	defer func() {
 		pass_flag = false
 	}()
 
-	body, err := ioutil.ReadAll(resp.Body)
-	e.control(err)
-
-	if e.parser(string(body), domain, passive_name) {
-		e.loger("SUCCESFLY : ", "PassiveDNS have finished")
+	if Passive.parser(Passive.Meow(base_url), domain, passive_name) {
+		Passive.loger("SUCCESFLY : ", "PassiveDNS have finished")
 	} else {
-		e.loger("ERROR : ", "cannot runnig PassiveDNS")
+		Passive.loger("ERROR : ", "cannot runnig PassiveDNS")
 	}
 
 }
@@ -145,7 +150,7 @@ func main() {
 	go engine.PassiveDNS(domain)
 
 	for ggl_flag || pass_flag {
-		time.Sleep(time.Second * 2)
+		time.Sleep(0)
 	}
 
 }
