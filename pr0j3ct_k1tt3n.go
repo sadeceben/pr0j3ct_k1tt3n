@@ -9,8 +9,11 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 )
-
+// Sleep Flag
+var ggl_flag bool = true
+var pass_flag bool = true
 // log file path
 const log_f_path string = "logs/logs.txt"
 
@@ -50,12 +53,12 @@ func (e Engine) loger(prefix, description string) {
 
 func (e Engine) parser(body, domain, search_engine string) (is_it bool) {
 	var reg_x string
+
 	if strings.Contains(search_engine, ggl_name) {
 		reg_x = "(http|ftp|https)://([\\w_-]+(?:(?:\\.[\\w_-]+)+))([\\w.,@?^=%&:/~+#-]*[\\w@?^=%&/~+#-])?"
 	} else if strings.Contains(search_engine, passive_name) {
 		reg_x = "<td>(.*?)</td>"
 	}
-
 	is_it = false
 	re := regexp.MustCompile(reg_x)
 	list := re.FindAllString(body, -1)
@@ -76,6 +79,7 @@ func (e Engine) parser(body, domain, search_engine string) (is_it bool) {
 }
 
 func (e Engine) GoogleEnum(query string) {
+
 	base_url := google_url
 	base_url = strings.Replace(base_url, "{query}", "site:*.*."+query, -1)
 	new_url := ""
@@ -87,7 +91,9 @@ func (e Engine) GoogleEnum(query string) {
 		resp, err := http.Get(new_url)
 		e.control(err)
 		defer resp.Body.Close()
-
+		defer func() {
+      			ggl_flag = false
+		}()
 		body, err := ioutil.ReadAll(resp.Body)
 		e.control(err)
 
@@ -111,9 +117,13 @@ func (e Engine) PassiveDNS(domain string) {
 	e.control(err)
 
 	defer resp.Body.Close()
+	defer func() {
+		pass_flag = false
+	}()
 
 	body, err := ioutil.ReadAll(resp.Body)
 	e.control(err)
+
 	if e.parser(string(body), domain, passive_name) {
 		e.loger("SUCCESFLY : ", "PassiveDNS have finished")
 	} else {
@@ -124,10 +134,17 @@ func (e Engine) PassiveDNS(domain string) {
 
 func main() {
 	var domain string
+
 	engine := Engine{}
 	fmt.Print("Enter your Domain : ")
 	fmt.Scan(&domain)
 
-	engine.PassiveDNS(domain)
-	engine.GoogleEnum(domain)
-}
+	go	engine.GoogleEnum(domain)
+	go	engine.PassiveDNS(domain)
+
+	for ggl_flag || pass_flag {
+		time.Sleep(time.Second * 2)
+	}
+
+   }
+

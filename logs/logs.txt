@@ -1,4 +1,0 @@
-RUNNING : 2020/11/18 02:56:12 PassiveDNS running
-SUCCESFLY : 2020/11/18 02:56:13 PassiveDNS have finished
-RUNNING : 2020/11/18 02:56:13 GoogleEnum function is runnig
-SUCCESFLY : 2020/11/18 02:56:30 GoogleEnum function have finished
