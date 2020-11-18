@@ -11,9 +11,11 @@ import (
 	"strings"
 	"time"
 )
+
 // Sleep Flag
 var ggl_flag bool = true
 var pass_flag bool = true
+
 // log file path
 const log_f_path string = "logs/logs.txt"
 
@@ -92,7 +94,7 @@ func (e Engine) GoogleEnum(query string) {
 		e.control(err)
 		defer resp.Body.Close()
 		defer func() {
-      			ggl_flag = false
+			ggl_flag = false
 		}()
 		body, err := ioutil.ReadAll(resp.Body)
 		e.control(err)
@@ -139,12 +141,11 @@ func main() {
 	fmt.Print("Enter your Domain : ")
 	fmt.Scan(&domain)
 
-	go	engine.GoogleEnum(domain)
-	go	engine.PassiveDNS(domain)
+	go engine.GoogleEnum(domain)
+	go engine.PassiveDNS(domain)
 
 	for ggl_flag || pass_flag {
 		time.Sleep(time.Second * 2)
 	}
 
-   }
-
+}
