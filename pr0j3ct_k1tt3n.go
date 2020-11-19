@@ -15,6 +15,7 @@ import (
 // Sleep Flag
 var ggl_flag bool = true
 var pass_flag bool = true
+var yahoo_flag bool = true
 
 // log file path
 const log_f_path string = "logs/logs.txt"
@@ -25,8 +26,12 @@ const google_url string = "https://google.com/search?q={query}&btnG=Search&hl=en
 const google_re string = "https://www.google.com/recaptcha/api.js"
 
 // PassiveDNS Variable
-const passive_url string = "http://ptrarchive.com/tools/search.htm?label="
 const passive_name string = "PassiveDNS"
+const passive_url string = "http://ptrarchive.com/tools/search.htm?label="
+
+// Yahoo Variable
+const yahoo_name = "Yahoo"
+const yahoo_url  = "https://search.yahoo.com/search?p={query}&b={page_no}"
 
 type SearchEngine interface {
 	GoogleEnum()
@@ -54,15 +59,17 @@ func (e Engine) loger(prefix, description string) {
 }
 
 func (e Engine) parser(body, domain, search_engine string) (is_it bool) {
-	var reg_x string
 
-	if strings.Contains(search_engine, ggl_name) {
-		reg_x = "(http|ftp|https)://([\\w_-]+(?:(?:\\.[\\w_-]+)+))([\\w.,@?^=%&:/~+#-]*[\\w@?^=%&/~+#-])?"
-	} else if strings.Contains(search_engine, passive_name) {
-		reg_x = "<td>(.*?)</td>"
-	}
 	is_it = false
-	re := regexp.MustCompile(reg_x)
+	re := regexp.MustCompile("")
+	if strings.Contains(search_engine, ggl_name) {
+		re = regexp.MustCompile("(http|ftp|https)://([\\w_-]+(?:(?:\\.[\\w_-]+)+))([\\w.,@?^=%&:/~+#-]*[\\w@?^=%&/~+#-])?")
+	} else if strings.Contains(search_engine, passive_name) {
+		re = regexp.MustCompile("<td>(.*?)</td>")
+	} else if strings.Contains(search_engine, yahoo_name) {
+		re = regexp.MustCompile(`<span class="txt"><span class=" cite fw-xl fz-15px">(.*?)</span>`)
+	}
+
 	list := re.FindAllString(body, -1)
 	for _, links := range list {
 		if strings.Contains(links, domain) {
@@ -77,6 +84,7 @@ func (e Engine) parser(body, domain, search_engine string) (is_it bool) {
 			}
 		}
 	}
+	fmt.Println("Parser Exit")
 	return
 }
 
@@ -139,6 +147,30 @@ func (Passive Engine) PassiveDNS(domain string) {
 
 }
 
+func ( Yahoo Engine ) Yahoo(domain string) {
+
+        base_url := strings.Replace(yahoo_url, "{query}", "*.*." + domain, -1)
+        new_url := ""
+
+        Yahoo.loger("RUNNING : ", "Yahoo function is runnig")
+
+        for i := 0; i < 100; i++ {
+                new_url = strings.Replace(base_url, "{page_no}", strconv.Itoa(i*10), -1)
+                defer func() {
+                        yahoo_flag = false
+                }()
+                if Yahoo.parser(Yahoo.Meow(new_url), domain, yahoo_name) {
+                        fmt.Println(i)
+                } else if strings.Contains(Yahoo.Meow(new_url), google_re) {
+                        Yahoo.loger("ERROR : ", "Yahoo funciton is caught google recaptcha")
+                        break
+                } else {
+                        break
+                }
+        }
+        Yahoo.loger("SUCCESFLY : ", "Yahoo function have finished")
+}
+
 func main() {
 	var domain string
 
@@ -146,10 +178,12 @@ func main() {
 	fmt.Print("Enter your Domain : ")
 	fmt.Scan(&domain)
 
-	go engine.GoogleEnum(domain)
-	go engine.PassiveDNS(domain)
+//	go engine.GoogleEnum(domain)
+//	go engine.PassiveDNS(domain)
 
-	for ggl_flag || pass_flag {
+	go engine.Yahoo(domain)
+
+	for yahoo_flag {
 		time.Sleep(0)
 	}
 
