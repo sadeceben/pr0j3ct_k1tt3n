@@ -12,7 +12,7 @@ git clone "https://github.com/sadeceben/pr0j3ct_k1tt3n.git"
 
 ## How to Running ?
 
-then open **sub_3num/** directory. After then
+then open **pr0j3ct_k1tt3n/** directory. After then
 
 --------------------------------------------------
 
