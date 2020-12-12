@@ -10,14 +10,16 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"net/url"
 )
 
 // Sleep Flag
 var ggl_flag bool = true
 var pass_flag bool = true
 
-// log file path
+// log and output file path
 const log_f_path string = "logs/logs.txt"
+const output_f_path string = "output/output.txt"
 
 // GoogleEnum Variable
 const ggl_name string = "Google"
@@ -34,6 +36,8 @@ type SearchEngine interface {
 	control()
 	loger()
 	parser()
+	writer()
+	reader()
 }
 
 type Engine struct {
@@ -53,6 +57,24 @@ func (e Engine) loger(prefix, description string) {
 	logger.Println(description)
 }
 
+func (e Engine) writer(link string) {
+	file, err := os.OpenFile(output_f_path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	e.control(err)
+
+	defer file.Close()
+
+	if link != "" {
+	_, err = file.WriteString(link + "\n")
+	e.control(err)
+	}
+}
+
+func (e Engine) reader() {
+	content, err := ioutil.ReadFile(output_f_path)
+	e.control(err)
+	fmt.Println(string(content))
+}
+
 func (e Engine) parser(body, domain, search_engine string) (is_it bool) {
 	var reg_x string
 
@@ -69,10 +91,13 @@ func (e Engine) parser(body, domain, search_engine string) (is_it bool) {
 			if strings.Contains(search_engine, passive_name) {
 				links = strings.Replace(links, "<td>", "", -1)
 				links = strings.Replace(links, " [TR]</td>", "", -1)
-				fmt.Println("|----> : " + "http://" + links + " OR " + "https://" + links)
+				e.writer(links)
+
 				is_it = true
 			} else {
-				fmt.Println("|----> : " + links)
+				conv_link, _ := url.Parse(links)
+				e.writer(conv_link.Host)
+				fmt.Println("|----> : " + conv_link.Host)
 				is_it = true
 			}
 		}
@@ -112,7 +137,6 @@ func (Google Engine) GoogleEnum(query string) {
 			ggl_flag = false
 		}()
 		if Google.parser(Google.Meow(new_url), query, ggl_name) {
-			fmt.Println(i)
 		} else if strings.Contains(Google.Meow(new_url), google_re) {
 			Google.loger("ERROR : ", "GoogleEnum funciton is caught google recaptcha")
 			break
@@ -153,4 +177,5 @@ func main() {
 		time.Sleep(0)
 	}
 
+//	engine.reader()
 }

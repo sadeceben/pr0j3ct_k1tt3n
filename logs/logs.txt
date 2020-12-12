@@ -1,4 +1,0 @@
-RUNNING : 2020/11/19 01:49:32 Yahoo function is runnig
-SUCCESFLY : 2020/11/19 01:49:34 Yahoo function have finished
-RUNNING : 2020/11/19 01:50:49 Yahoo function is runnig
-SUCCESFLY : 2020/11/19 01:50:51 Yahoo function have finished
