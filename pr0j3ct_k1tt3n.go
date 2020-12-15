@@ -5,21 +5,26 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
 	"regexp"
 	"strconv"
 	"strings"
+	"html/template"
 	"time"
-	"net/url"
 )
 
 // Sleep Flag
+var yahoo_flag = true
 var ggl_flag bool = true
 var pass_flag bool = true
 
 // log and output file path
 const log_f_path string = "logs/logs.txt"
-const output_f_path string = "output/output.txt"
+
+//YahooEnum Variable
+const yaho_name = "Yahoo"
+const yahoo_url = "https://search.yahoo.com/search?p={query}&b={page_no}"
 
 // GoogleEnum Variable
 const ggl_name string = "Google"
@@ -32,7 +37,10 @@ const passive_name string = "PassiveDNS"
 
 type SearchEngine interface {
 	GoogleEnum()
+	YahooEnum()
 	PassiveDNS()
+	result()
+	index()
 	control()
 	loger()
 	parser()
@@ -57,8 +65,8 @@ func (e Engine) loger(prefix, description string) {
 	logger.Println(description)
 }
 
-func (e Engine) writer(link string) {
-	file, err := os.OpenFile(output_f_path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+func (e Engine) writer(link, domain string) {
+	file, err := os.OpenFile("output/" + domain + ".txt", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	e.control(err)
 
 	defer file.Close()
@@ -69,10 +77,10 @@ func (e Engine) writer(link string) {
 	}
 }
 
-func (e Engine) reader() {
-	content, err := ioutil.ReadFile(output_f_path)
+func (e Engine) reader(domain string) string{
+	content, err := ioutil.ReadFile("output/" + domain + ".txt")
 	e.control(err)
-	fmt.Println(string(content))
+	return string(content)
 }
 
 func (e Engine) parser(body, domain, search_engine string) (is_it bool) {
@@ -82,6 +90,8 @@ func (e Engine) parser(body, domain, search_engine string) (is_it bool) {
 		reg_x = "(http|ftp|https)://([\\w_-]+(?:(?:\\.[\\w_-]+)+))([\\w.,@?^=%&:/~+#-]*[\\w@?^=%&/~+#-])?"
 	} else if strings.Contains(search_engine, passive_name) {
 		reg_x = "<td>(.*?)</td>"
+	} else if strings.Contains(search_engine, yaho_name) {
+		reg_x = "<span class=\" fz-15px fw-m fc-12th wr-bw.*?\">(.*?)</span>"
 	}
 	is_it = false
 	re := regexp.MustCompile(reg_x)
@@ -91,13 +101,13 @@ func (e Engine) parser(body, domain, search_engine string) (is_it bool) {
 			if strings.Contains(search_engine, passive_name) {
 				links = strings.Replace(links, "<td>", "", -1)
 				links = strings.Replace(links, " [TR]</td>", "", -1)
-				e.writer(links)
+				e.writer(links, domain)
 
 				is_it = true
 			} else {
 				conv_link, _ := url.Parse(links)
-				e.writer(conv_link.Host)
-				fmt.Println("|----> : " + conv_link.Host)
+				e.writer(conv_link.Host, domain)
+				//fmt.Println("|----> : " + conv_link.Host)
 				is_it = true
 			}
 		}
@@ -163,19 +173,61 @@ func (Passive Engine) PassiveDNS(domain string) {
 
 }
 
-func main() {
-	var domain string
+func (Yahoo Engine) YahooEnum(query string) {
 
-	engine := Engine{}
-	fmt.Print("Enter your Domain : ")
-	fmt.Scan(&domain)
+        base_url := strings.Replace(yahoo_url, "{query}", "site:*.*."+ query, -1)
+        new_url := ""
 
-	go engine.GoogleEnum(domain)
-	go engine.PassiveDNS(domain)
+        Yahoo.loger("RUNNING : ", "YahooEnum function is runnig")
+
+        for i := 0; i < 100; i++ {
+                new_url = strings.Replace(base_url, "{page_no}", strconv.Itoa(i*10), -1)
+                defer func() {
+                        yahoo_flag = false
+                }()
+                if Yahoo.parser(Yahoo.Meow(new_url), query, yaho_name) {
+                } else if strings.Contains(Yahoo.Meow(new_url), google_re) {
+                        Yahoo.loger("ERROR : ", "YahooEnum funciton is caught google recaptcha")
+                        break
+                } else {
+                        break
+                }
+        }
+        Yahoo.loger("SUCCESFLY : ", "YahooEnum function have finished")
+}
+
+func (e Engine) index(w http.ResponseWriter, r *http.Request) {
+        if r.Method == "GET" {
+                var tmpl = template.Must(template.New("form").ParseFiles("template/test.html"))
+                var err  = tmpl.Execute(w, nil)
+                e.control(err)
+                return
+        }
+        http.Error(w, "", http.StatusBadRequest)
+}
+
+func (e Engine) result(w http.ResponseWriter, r *http.Request) {
+        var domain = r.FormValue("name")
+        e.start(string(domain))
+        content := e.reader(domain)
+        fmt.Fprintf(w, content)
+}
+
+func (e Engine) start(domain string) {
+	go e.GoogleEnum(domain)
+	go e.PassiveDNS(domain)
+//	go engine.YahooEnum(domain)
 
 	for ggl_flag || pass_flag {
 		time.Sleep(0)
 	}
+}
 
-//	engine.reader()
+func main() {
+	engine := Engine{}
+	http.HandleFunc("/", engine.index)
+	http.HandleFunc("/result", engine.result)
+
+	fmt.Println("http://127.0.0.1:4343")
+	http.ListenAndServe(":4343", nil)
 }
