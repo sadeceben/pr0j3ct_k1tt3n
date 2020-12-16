@@ -10,8 +10,8 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
-	"html/template"
 	"time"
+	"html/template"
 )
 
 // Sleep Flag
@@ -40,12 +40,12 @@ type SearchEngine interface {
 	YahooEnum()
 	PassiveDNS()
 	result()
-	index()
 	control()
 	loger()
 	parser()
 	writer()
 	reader()
+	formatter()
 }
 
 type Engine struct {
@@ -72,7 +72,7 @@ func (e Engine) writer(link, domain string) {
 	defer file.Close()
 
 	if link != "" {
-	_, err = file.WriteString(link + "\n")
+	_, err = file.WriteString(link + ",")
 	e.control(err)
 	}
 }
@@ -81,6 +81,13 @@ func (e Engine) reader(domain string) string{
 	content, err := ioutil.ReadFile("output/" + domain + ".txt")
 	e.control(err)
 	return string(content)
+}
+
+func (e Engine) formatter(content string) []string {
+	re := regexp.MustCompile(`(.|\n)*?,`)
+	links := re.FindAllString(content,-1)
+
+	return links
 }
 
 func (e Engine) parser(body, domain, search_engine string) (is_it bool) {
@@ -133,7 +140,6 @@ func (e Engine) Meow(url string) string {
 
 	return string(body)
 }
-
 func (Google Engine) GoogleEnum(query string) {
 
 	base_url := strings.Replace(google_url, "{query}", "site:*.*."+query, -1)
@@ -196,21 +202,22 @@ func (Yahoo Engine) YahooEnum(query string) {
         Yahoo.loger("SUCCESFLY : ", "YahooEnum function have finished")
 }
 
-func (e Engine) index(w http.ResponseWriter, r *http.Request) {
-        if r.Method == "GET" {
-                var tmpl = template.Must(template.New("form").ParseFiles("template/test.html"))
-                var err  = tmpl.Execute(w, nil)
-                e.control(err)
-                return
-        }
-        http.Error(w, "", http.StatusBadRequest)
+type Links struct {
+	List []string
 }
 
 func (e Engine) result(w http.ResponseWriter, r *http.Request) {
+	parsedTemplate, _ := template.ParseFiles("static/result.html")
         var domain = r.FormValue("name")
+	fmt.Println(string(domain))
         e.start(string(domain))
-        content := e.reader(domain)
-        fmt.Fprintf(w, content)
+        content := e.formatter(e.reader(domain))
+	fmt.Println(content)
+	links := Links {
+		List: content,
+	}
+	err := parsedTemplate.Execute(w, links)
+	e.control(err)
 }
 
 func (e Engine) start(domain string) {
@@ -225,9 +232,12 @@ func (e Engine) start(domain string) {
 
 func main() {
 	engine := Engine{}
-	http.HandleFunc("/", engine.index)
+	fs := http.FileServer(http.Dir("./static"))
+	http.Handle("/", fs)
 	http.HandleFunc("/result", engine.result)
 
-	fmt.Println("http://127.0.0.1:4343")
-	http.ListenAndServe(":4343", nil)
+	log.Println("http://127.0.0.1:4343/main.html")
+	err := http.ListenAndServe(":4343", nil)
+	engine.control(err)
+
 }
