@@ -14,17 +14,16 @@ import (
 	"html/template"
 )
 
+
+// Target Domain
+var target_domain string
+
 // Sleep Flag
-var yahoo_flag = true
 var ggl_flag bool = true
 var pass_flag bool = true
 
 // log and output file path
 const log_f_path string = "logs/logs.txt"
-
-//YahooEnum Variable
-const yaho_name = "Yahoo"
-const yahoo_url = "https://search.yahoo.com/search?p={query}&b={page_no}"
 
 // GoogleEnum Variable
 const ggl_name string = "Google"
@@ -37,15 +36,16 @@ const passive_name string = "PassiveDNS"
 
 type SearchEngine interface {
 	GoogleEnum()
-	YahooEnum()
 	PassiveDNS()
 	result()
 	control()
 	loger()
 	parser()
-	writer()
-	reader()
 	formatter()
+}
+
+type Links struct {
+	List []string
 }
 
 type Engine struct {
@@ -65,23 +65,6 @@ func (e Engine) loger(prefix, description string) {
 	logger.Println(description)
 }
 
-func (e Engine) writer(link, domain string) {
-	file, err := os.OpenFile("output/" + domain + ".txt", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-	e.control(err)
-
-	defer file.Close()
-
-	if link != "" {
-	_, err = file.WriteString(link + ",")
-	e.control(err)
-	}
-}
-
-func (e Engine) reader(domain string) string{
-	content, err := ioutil.ReadFile("output/" + domain + ".txt")
-	e.control(err)
-	return string(content)
-}
 
 func (e Engine) formatter(content string) []string {
 	re := regexp.MustCompile(`(.|\n)*?,`)
@@ -90,36 +73,33 @@ func (e Engine) formatter(content string) []string {
 	return links
 }
 
-func (e Engine) parser(body, domain, search_engine string) (is_it bool) {
+func (e Engine) parser(body, search_engine string) (is_it bool,domains string) {
 	var reg_x string
-
+	domains = ""
 	if strings.Contains(search_engine, ggl_name) {
 		reg_x = "(http|ftp|https)://([\\w_-]+(?:(?:\\.[\\w_-]+)+))([\\w.,@?^=%&:/~+#-]*[\\w@?^=%&/~+#-])?"
 	} else if strings.Contains(search_engine, passive_name) {
 		reg_x = "<td>(.*?)</td>"
-	} else if strings.Contains(search_engine, yaho_name) {
-		reg_x = "<span class=\" fz-15px fw-m fc-12th wr-bw.*?\">(.*?)</span>"
 	}
+
 	is_it = false
 	re := regexp.MustCompile(reg_x)
 	list := re.FindAllString(body, -1)
 	for _, links := range list {
-		if strings.Contains(links, domain) {
+		if strings.Contains(links, target_domain) {
 			if strings.Contains(search_engine, passive_name) {
 				links = strings.Replace(links, "<td>", "", -1)
 				links = strings.Replace(links, " [TR]</td>", "", -1)
-				e.writer(links, domain)
-
+				domains += links + ","
 				is_it = true
 			} else {
 				conv_link, _ := url.Parse(links)
-				e.writer(conv_link.Host, domain)
-				//fmt.Println("|----> : " + conv_link.Host)
+				domains += conv_link.Host + ","
 				is_it = true
 			}
 		}
 	}
-	return
+	return is_it, domains
 }
 
 func (e Engine) Meow(url string) string {
@@ -140,11 +120,12 @@ func (e Engine) Meow(url string) string {
 
 	return string(body)
 }
-func (Google Engine) GoogleEnum(query string) {
+func (Google Engine) GoogleEnum(query string) (string){
 
 	base_url := strings.Replace(google_url, "{query}", "site:*.*."+query, -1)
 	new_url := ""
-
+	var domain_list string
+	var is_it bool
 	Google.loger("RUNNING : ", "GoogleEnum function is runnig")
 
 	for i := 0; i < 100; i++ {
@@ -152,7 +133,8 @@ func (Google Engine) GoogleEnum(query string) {
 		defer func() {
 			ggl_flag = false
 		}()
-		if Google.parser(Google.Meow(new_url), query, ggl_name) {
+		is_it, domain_list = Google.parser(Google.Meow(new_url), ggl_name)
+		if is_it{
 		} else if strings.Contains(Google.Meow(new_url), google_re) {
 			Google.loger("ERROR : ", "GoogleEnum funciton is caught google recaptcha")
 			break
@@ -161,58 +143,31 @@ func (Google Engine) GoogleEnum(query string) {
 		}
 	}
 	Google.loger("SUCCESFLY : ", "GoogleEnum function have finished")
+	return domain_list
 }
 
-func (Passive Engine) PassiveDNS(domain string) {
+func (Passive Engine) PassiveDNS(domain string) (string){
 	base_url := passive_url + domain
 	Passive.loger("RUNNING : ", "PassiveDNS running")
 
 	defer func() {
 		pass_flag = false
 	}()
-
-	if Passive.parser(Passive.Meow(base_url), domain, passive_name) {
+	is_it, domain_list := Passive.parser(Passive.Meow(base_url), passive_name)
+	if is_it{
 		Passive.loger("SUCCESFLY : ", "PassiveDNS have finished")
 	} else {
 		Passive.loger("ERROR : ", "cannot runnig PassiveDNS")
 	}
-
-}
-
-func (Yahoo Engine) YahooEnum(query string) {
-
-        base_url := strings.Replace(yahoo_url, "{query}", "site:*.*."+ query, -1)
-        new_url := ""
-
-        Yahoo.loger("RUNNING : ", "YahooEnum function is runnig")
-
-        for i := 0; i < 100; i++ {
-                new_url = strings.Replace(base_url, "{page_no}", strconv.Itoa(i*10), -1)
-                defer func() {
-                        yahoo_flag = false
-                }()
-                if Yahoo.parser(Yahoo.Meow(new_url), query, yaho_name) {
-                } else if strings.Contains(Yahoo.Meow(new_url), google_re) {
-                        Yahoo.loger("ERROR : ", "YahooEnum funciton is caught google recaptcha")
-                        break
-                } else {
-                        break
-                }
-        }
-        Yahoo.loger("SUCCESFLY : ", "YahooEnum function have finished")
-}
-
-type Links struct {
-	List []string
+	return domain_list
 }
 
 func (e Engine) result(w http.ResponseWriter, r *http.Request) {
 	parsedTemplate, _ := template.ParseFiles("static/result.html")
-        var domain = r.FormValue("name")
-	fmt.Println(string(domain))
-        e.start(string(domain))
-        content := e.formatter(e.reader(domain))
-	fmt.Println(content)
+	target_domain = r.FormValue("name")
+	domains := e.start(string(target_domain))
+	content := e.formatter(domains)
+
 	links := Links {
 		List: content,
 	}
@@ -220,14 +175,15 @@ func (e Engine) result(w http.ResponseWriter, r *http.Request) {
 	e.control(err)
 }
 
-func (e Engine) start(domain string) {
-	go e.GoogleEnum(domain)
-	go e.PassiveDNS(domain)
+func (e Engine) start(domain string)(string){
+	goog_list := e.GoogleEnum(domain)
+	passive_list := e.PassiveDNS(domain)
 //	go engine.YahooEnum(domain)
 
 	for ggl_flag || pass_flag {
 		time.Sleep(0)
 	}
+	return goog_list + passive_list
 }
 
 func main() {
